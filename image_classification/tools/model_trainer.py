@@ -121,5 +121,6 @@ def _train_model(net, train_iter, valid_iter, loss_fn, metrics, optimizer, num_e
     if use_animator:
         animator.set_suptitle(
             f'Epoch: {num_epochs}    Device: {device} \nTime already spent: {timer.sum():.3f} sec\nAvg time spent:  {timer.sum()/num_epochs:.3f} sec/epoch  {timer.avg(): .3f} sec/batch')
-
-
+    if use_tensorboard:
+        writer.flush()
+        writer.close()
