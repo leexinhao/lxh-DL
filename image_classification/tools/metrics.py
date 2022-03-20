@@ -1,6 +1,6 @@
 
 r"""
-metric必须实现method='sum', 'mean'方法，最好返回float #TODO 草，有没有考虑过pytorch有封装过metric，算了，万一以后要自定义metric呢，但是还是学一下pytorch怎么封装的吧 
+metric必须实现method='sum', 'mean'方法，最好返回float pytorch好像没有像tensorflow那样把metric都封装好，分类的话可以借助sklearn.metric
 
 """
 
@@ -17,14 +17,17 @@ def check_metrics(metrics):
 
 
 class Metric:
+    def __init__(self, *args, **kwds):
+        raise NotImplementedError('Please define "a init method"')
+
     def __call__(self, *args, **kwds):
         raise NotImplementedError('Please define "a call method"')
 
 
 
 class Accuracy(Metric):
-    def __init__(self):
-        self.name = 'accuracy'
+    def __init__(self, name='Accuracy'):
+        self.name = name
 
     def __call__(self, y_pred, y_true, method='mean'):
         return accuracy(y_pred, y_true, method=method)
@@ -43,15 +46,3 @@ def accuracy(y_pred, y_true, method='mean'):
     else:
         raise NotImplementedError
 
-
-# def evaluate_accuracy(net, data_iter, device=None): 
-#     net.eval()  # 设置为评估模式
-#     if not device:
-#         device = next(iter(net.parameters())).device
-#     # 正确预测的数量，总预测的数量
-#     metric = Accumulator(2)
-#     for X, y_true in data_iter:
-#         X = X.to(device)
-#         y_true = y_true.to(device)
-#         metric.add(accuracy_sum(net(X), y_true), y_true.numel())
-#     return metric[0] / metric[1]

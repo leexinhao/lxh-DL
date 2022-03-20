@@ -5,7 +5,7 @@ Module for testing model.
 import torch
 from tools.utils import Accumulator, Timer
 from tools.metrics import check_metrics
-def test_model(net, test_iter, loss_fn, metrics, device):
+def test_model(net, test_iter, loss_fn, metrics, device, print_result=True):
     # check metrics
     metrics = check_metrics(metrics)
     num_instances = len(test_iter.dataset)
@@ -24,17 +24,18 @@ def test_model(net, test_iter, loss_fn, metrics, device):
     test_loss = recorder['loss'] / num_batches
     test_metrics = [recorder[metric.name] / num_instances for metric in metrics]
     
-    print(
-        f"""        Test result
-         Number of instances: {num_instances}
-         Number of batches: {num_batches}
-         Avg loss of each batch: {test_loss:>8f}
-         """)
-    for i, test_metric in enumerate(test_metrics):
-        print(f"{metrics[i].name}: {test_metric:.2f}")
-    print(f"""Time spent: {timer.sum()} sec
-            {num_instances / timer.sum():.3f} examples/sec
-            {timer.avg():.3f} sec/batch on {device}
+    if print_result:
+        print(
+            f"""        Test result
+            Number of instances: {num_instances}
+            Number of batches: {num_batches}
+            Avg loss of each batch: {test_loss:>8f}
             """)
+        for i, test_metric in enumerate(test_metrics):
+            print(f"{metrics[i].name}: {test_metric:.3f}")
+        print(f"""Time spent: {timer.sum()} sec
+                {num_instances / timer.sum():.3f} examples/sec
+                {timer.avg():.3f} sec/batch on {device}
+                """)
     return test_loss, test_metrics
 

@@ -1,5 +1,6 @@
 # specific dir or file
 Datasets
+runs
 *.ini
 # Byte-compiled / optimized / DLL files
 __pycache__/
