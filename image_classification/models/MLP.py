@@ -3,8 +3,8 @@ from torch import nn
 
 
 class MLP(nn.Module):
-    def __init__(self, hidden_num=100):
-        super(MLP, self).__init__()
+    def __init__(self, hidden_num=100, *args, **kwargs):
+        super(MLP, self).__init__(*args, **kwargs)
         self.flatten = nn.Flatten()
         self.linear_relu_stack = nn.Sequential(
             nn.Linear(28*28, hidden_num),

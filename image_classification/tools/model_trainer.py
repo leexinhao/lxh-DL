@@ -27,45 +27,51 @@ def train_batch(net, X, y, loss_fn, metrics, optimizer, device):
     return train_loss_sum, train_metrics_sum
 
 
-def train_model(net, train_iter, valid_iter, loss_fn, metrics, optimizer, num_epochs, device, use_tensorboard=False, log_dir=None, use_animator=False):
+def train_model(net, train_iter, valid_iter, loss_fn, metrics, optimizer, num_epochs, device, use_animator=False, use_tensorboard=False, log_dir=None, comment=''):
     r"""
     进行一次完整的训练 
     """
     # check metrics
     metrics = check_metrics(metrics)
-    _train_model(net, train_iter, valid_iter, loss_fn, metrics, optimizer, num_epochs, device, use_tensorboard, log_dir, use_animator)
-  
-
-def _train_model(net, train_iter, valid_iter, loss_fn, metrics, optimizer, num_epochs, device, use_tensorboard, log_dir, use_animator):
-    net = net.to(device)
-    print(f"training on {device}")
-    num_batches = len(train_iter)
-    n_columns = 1 + len(metrics)
     if use_tensorboard:
-        writer = SummaryWriter(log_dir=log_dir)
+        writer = SummaryWriter(log_dir=log_dir, comment=comment)
+    else:
+        writer = None
     if use_animator:
+        n_columns = 1 + len(metrics)
         animator = Animator(legends=[['Loss/Train', 'Loss/Valid'],
-                            *[[f'{metric.name}/Train', f'{metric.name}/Valid'] for metric in metrics]],
+                                    *[[f'{metric.name}/Train', f'{metric.name}/Valid'] for metric in metrics]],
                             nrows=1, ncols=n_columns, figsize=(8*n_columns, 8),
                             xlabels=['epoch' for _ in range(n_columns)],
                             ylabels=['loss', *[metric.name for metric in metrics]],
                             xlims=[[0, num_epochs] for _ in range(n_columns)],
                             ylims=None)
-    recorder = Accumulator(1 + n_columns, ["num_exaples", "loss", *[f'{metric.name}' for metric in metrics]])
+    else:
+        animator = None
+    _train_model(net, train_iter, valid_iter, loss_fn, metrics, optimizer, num_epochs, device, animator, writer)
+    if writer is not None:
+        writer.flush()
+        writer.close()
+
+def _train_model(net, train_iter, valid_iter, loss_fn, metrics, optimizer, num_epochs, device, animator, writer):
+    net = net.to(device)
+    print(f"training on {device}")
+    num_batches = len(train_iter)
+        
+    recorder = Accumulator(2 + len(metrics), ["num_exaples", "loss", *[f'{metric.name}' for metric in metrics]])
     timer = Timer()
-    if use_tensorboard:
+    if writer is not None:
     # 记录初始权值
         for name, param in net.named_parameters():
             writer.add_histogram(name + '_data', param, 0)
     for epoch in range(num_epochs):
-
         # 每个epoch开始时重置recorder
         recorder.reset()
         if epoch != 0:
             time_per_epoch = timer.sum() / epoch
         else:
             time_per_epoch = -1
-        if use_animator:
+        if animator is not None:
             animator.set_suptitle(
                 f'Epoch: {epoch+1}    Device: {device} \nTime already spent: {timer.sum():.3f} sec\nAvg time spent:  {time_per_epoch:.3f} sec/epoch  {timer.avg(): .3f} sec/batch')
         for i, (features, labels) in enumerate(train_iter):
@@ -74,21 +80,21 @@ def _train_model(net, train_iter, valid_iter, loss_fn, metrics, optimizer, num_e
                                  loss_fn, metrics, optimizer, device)
             recorder.add(labels.shape[0], loss_sum, *metrics_sum)
             timer.stop()
-            if use_animator:
+            if animator is not None:
                 animator.set_suptitle(
                     f'Epoch: {epoch+1}    Device: {device} \nTime already spent: {timer.sum():.3f} sec\nAvg time spent:  {time_per_epoch:.3f} sec/epoch  {timer.avg(): .3f} sec/batch')
             if (i + 1) % (num_batches // 5) == 0 or i == num_batches - 1:
-                if use_animator:
+                if animator is not None:
                     animator.add(1, 1, epoch + (i + 1) / num_batches,
                                 (recorder["loss"] / (i + 1), None))
-                    for j in range(2, n_columns+1):
-                        animator.add(1, j, epoch + (i + 1) / num_batches,
-                                    (recorder[metrics[j-2].name] / recorder["num_exaples"], None)) 
-                if use_tensorboard:
+                    for j in range(len(metrics)):
+                        animator.add(1, j+2, epoch + (i + 1) / num_batches,
+                                    (recorder[metrics[j].name] / recorder["num_exaples"], None)) 
+                if writer is not None:
                     writer.add_scalar('Loss/Train', recorder["loss"] / (i + 1), epoch * num_batches + (i + 1))
-                    for j in range(2, n_columns+1):
-                        writer.add_scalar(f'{metrics[j-2].name}/Train', recorder[metrics[j-2].name] / recorder["num_exaples"], epoch * num_batches + (i + 1))
-        if use_tensorboard: # 放test_model前面是担心net.eval()对记录造成影响
+                    for j in range(len(metrics)):
+                        writer.add_scalar(f'{metrics[j].name}/Train', recorder[metrics[j].name] / recorder["num_exaples"], epoch * num_batches + (i + 1))
+        if writer is not None:  # 放test_model前面是担心net.eval()对记录造成影响
             # 堆每个epoch，记录梯度，权值
             for name, param in net.named_parameters():
                 writer.add_histogram(
@@ -97,16 +103,16 @@ def _train_model(net, train_iter, valid_iter, loss_fn, metrics, optimizer, num_e
                     name + '_data', param, epoch+1)
 
         valid_loss, valid_metrics = test_model(net, valid_iter, loss_fn, metrics, device, print_result=False) 
-        if use_animator:
+        if animator is not None:
             animator.add(1, 1, epoch + 1, (None, valid_loss))
-            for j in range(2, n_columns+1):
-                animator.add(1, j, epoch + 1,
-                            (None, valid_metrics[j-2]))
-        if use_tensorboard:
+            for j in range(len(metrics)):
+                animator.add(1, j+2, epoch + 1,
+                            (None, valid_metrics[j]))
+        if writer is not None:
             writer.add_scalar(
                 'Loss/Valid', valid_loss, epoch + 1)
-            for j in range(2, n_columns+1):
-                writer.add_scalar(f'{metrics[j-2].name}/Valid', valid_metrics[j-2], epoch + 1)
+            for j in range(len(metrics)):
+                writer.add_scalar(f'{metrics[j].name}/Valid', valid_metrics[j], epoch + 1)
 
     # 统计一下最终训练效果
     print("Train result")
@@ -118,9 +124,8 @@ def _train_model(net, train_iter, valid_iter, loss_fn, metrics, optimizer, num_e
     print(
         f'{recorder["num_exaples"] * num_epochs / timer.sum():.3f} examples/sec on {device}')
     print(f'{timer.sum() / num_epochs:.3f} sec/epoch on {device}')
-    if use_animator:
+    if animator is not None:
         animator.set_suptitle(
             f'Epoch: {num_epochs}    Device: {device} \nTime already spent: {timer.sum():.3f} sec\nAvg time spent:  {timer.sum()/num_epochs:.3f} sec/epoch  {timer.avg(): .3f} sec/batch')
-    if use_tensorboard:
-        writer.flush()
-        writer.close()
+
+
