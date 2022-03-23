@@ -12,7 +12,7 @@ class MLP(nn.Module):
             nn.Linear(hidden_num, 10)
         )
 
-    def forward(self, x):
-        x = self.flatten(x)
-        logits = self.linear_relu_stack(x)
+    def forward(self, X):
+        X = self.flatten(X)
+        logits = self.linear_relu_stack(X)
         return logits

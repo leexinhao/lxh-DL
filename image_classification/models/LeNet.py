@@ -3,6 +3,7 @@ from torch import nn
 
 def get_LeNet5():
     r"""
+    参考《动手学深度学习》
     输入为28x28图像
     输出为10维向量（10分类）
     输入输出写死是因为这是古董模型了，也就在Mnist或Fashion Mnist上玩玩
@@ -43,21 +44,21 @@ class LeNet(nn.Module):
         self.relu4 = nn.ReLU()
         self.fc3 = nn.Linear(84, 10)
 
-    def forward(self, x):
-        x = self.conv1(x)
-        x = self.bn1(x)
-        x = self.relu1(x)
-        x = self.avgpool1(x)
-        x = self.conv2(x)
-        x = self.bn2(x)
-        x = self.relu2(x)
-        x = self.avgpool2(x)
-        x = self.flatten(x)
-        x = self.fc1(x)
-        x = self.bn3(x)
-        x = self.relu3(x)
-        x = self.fc2(x)
-        x = self.bn4(x)
-        x = self.relu4(x)
-        x = self.fc3(x)
-        return x
+    def forward(self, X):
+        X = self.conv1(X)
+        X = self.bn1(X)
+        X = self.relu1(X)
+        X = self.avgpool1(X)
+        X = self.conv2(X)
+        X = self.bn2(X)
+        X = self.relu2(X)
+        X = self.avgpool2(X)
+        X = self.flatten(X)
+        X = self.fc1(X)
+        X = self.bn3(X)
+        X = self.relu3(X)
+        X = self.fc2(X)
+        X = self.bn4(X)
+        X = self.relu4(X)
+        X = self.fc3(X)
+        return X
