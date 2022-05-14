@@ -1,6 +1,6 @@
-<h1 align='center' >lxh-CV</h1>
+<h1 align='center' >lxh-DL</h1>
 
-> Computer vision's codes based on Pytorch. 
+> My codes about deep learning, mainly computer vision's codes based on Pytorch. 
 
 # 1 Image Classification
 
