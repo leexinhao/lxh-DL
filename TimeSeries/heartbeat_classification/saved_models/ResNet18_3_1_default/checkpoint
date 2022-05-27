@@ -1,0 +1,2 @@
+model_checkpoint_path: "ResNet18_3_1_default"
+all_model_checkpoint_paths: "ResNet18_3_1_default"

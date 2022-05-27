@@ -1,4 +1,5 @@
 # specific dir or file
+*.csv
 Datasets
 runs
 *.ini

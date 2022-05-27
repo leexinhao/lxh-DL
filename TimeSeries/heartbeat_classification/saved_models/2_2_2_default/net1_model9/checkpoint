@@ -1,0 +1,2 @@
+model_checkpoint_path: "net1_model9"
+all_model_checkpoint_paths: "net1_model9"
