@@ -1,6 +1,6 @@
 # specific dir or file
 *.csv
-saved_models
+savedmodels
 Datasets
 runs
 *.ini

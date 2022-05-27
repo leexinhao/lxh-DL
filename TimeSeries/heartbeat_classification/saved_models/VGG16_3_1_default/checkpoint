@@ -1,2 +1,0 @@
-model_checkpoint_path: "VGG16_3_1_default"
-all_model_checkpoint_paths: "VGG16_3_1_default"
