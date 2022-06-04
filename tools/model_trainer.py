@@ -18,8 +18,7 @@ def train_batch_L1(net, X, y, loss_fn, metrics, optimizer, device, lamda=0.001):
     X = X.to(device)
     y = y.to(device)
     net.train()
-    
-    regularlization_loss = 0
+
     y_pred = net(X)
     l = loss_fn(y_pred, y)
     regularization_loss = 0
@@ -141,7 +140,7 @@ def _train_model(net, train_iter, valid_iter, loss_fn, metrics, optimizer, num_e
             if print_log:
                 tmp_n = min(len_progress, len_progress * (i+1)//num_batches)
                 sys.stdout.write(
-                        '\r'+f"{i+1}/{num_batches} [{tmp_n*'='+(len_progress-tmp_n)*' '}]")
+                        '\r'+f"{i+1}/{num_batches} [{tmp_n*'='+'>'+max(0, len_progress-tmp_n-1)*' '}]")
                         
         if writer is not None:  # 放test_model前面是担心net.eval()对记录造成影响
             # 堆每个epoch，记录梯度，权值

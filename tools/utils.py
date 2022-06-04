@@ -7,6 +7,8 @@ import time
 from IPython import display
 from typing import List
 from typing import Optional as Op
+import logging
+import numpy as np
 
 
 
@@ -196,3 +198,42 @@ class Animator:
 
     def set_suptitle(self, title):
         self.fig.suptitle(title, fontsize=self.fontsize-1)
+
+
+
+
+class Logger(object):
+    def __init__(self, path='log.txt'):
+        self.logger = logging.getLogger('Logger')
+        self.file_handler = logging.FileHandler(path, 'w')
+        self.stdout_handler = logging.StreamHandler()
+        self.logger.addHandler(self.file_handler)
+        self.logger.addHandler(self.stdout_handler)
+        self.stdout_handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(message)s'))
+        self.file_handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(message)s'))
+        self.logger.setLevel(logging.INFO)
+
+    def info(self, txt):
+        self.logger.info(txt)
+
+    def close(self):
+        self.file_handler.close()
+        self.stdout_handler.close()
+
+
+class Averagvalue(object):
+    """Computes and stores the average and current value TODO 没啥用，RCF源码的，以后删了"""
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.val = 0
+        self.avg = 0
+        self.sum = 0
+        self.count = 0
+
+    def update(self, val, n=1):
+        self.val = val
+        self.sum += val * n
+        self.count += n
+        self.avg = self.sum / self.count
