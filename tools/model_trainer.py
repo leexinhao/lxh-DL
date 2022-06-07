@@ -102,6 +102,7 @@ def _train_model(net, train_iter, valid_iter, loss_fn, metrics, optimizer, num_e
     recorder = Accumulator(3 + len(metrics), ["num_instances", "num_elements", "loss", *[f'{metric.name}' for metric in metrics]])
     timer = Timer()
     last_epoch_time = 0
+    last_batch_time = 0
     if writer is not None:
     # 记录初始权值
         for name, param in net.named_parameters():
@@ -132,18 +133,23 @@ def _train_model(net, train_iter, valid_iter, loss_fn, metrics, optimizer, num_e
             if (i + 1) % (num_batches // 5) == 0 or i == num_batches - 1:
                 if animator is not None:
                     animator.add(1, 1, epoch - 1 + (i + 1) / num_batches,
-                                (recorder["loss"] / recorder["num_elements"], None))  # loss也先用element算吧
+                                (recorder["loss"] / recorder["num_instances"], None))  # loss也先用element算吧
                     for j in range(len(metrics)):
                         animator.add(1, j+2, epoch - 1 + (i + 1) / num_batches,
                                     (recorder[metrics[j].name] / recorder["num_elements"], None)) # metric考虑到有accuracy这样的，还是算单个的
                 if writer is not None:
-                    writer.add_scalar('Loss/Train', recorder["loss"] / (i + 1), (epoch-1) * num_batches + (i + 1))
+                    writer.add_scalar('Loss/Train', recorder["loss"] / recorder["num_instances"], (epoch-1) * num_batches + (i + 1))
                     for j in range(len(metrics)):
-                        writer.add_scalar(f'{metrics[j].name}/Train', recorder[metrics[j].name] / recorder["num_exaples"], (epoch-1) * num_batches + (i + 1))
+                        writer.add_scalar(f'{metrics[j].name}/Train', recorder[metrics[j].name] / recorder["num_elements"], (epoch-1) * num_batches + (i + 1))
             if print_log:
                 tmp_n = min(len_progress, len_progress * (i+1)//num_batches)
-                sys.stdout.write(
-                        '\r'+f"{i+1}/{num_batches} [{tmp_n*'='+'>'+max(0, len_progress-tmp_n-1)*' '}]")
+                tmp_log = '\r'+f"{i+1}/{num_batches} [{tmp_n*'='+'>'+max(0, len_progress-tmp_n-1)*' '}] "
+                tmp_log += f"Train Loss: {recorder['loss']/recorder['num_instances']:.4f}, "
+                for j in range(len(metrics)):
+                    tmp_log += f"Train {metrics[j].name}: {recorder[metrics[j].name] / recorder['num_elements']:.4f}, "
+                tmp_log += f"Cost Time {timer.sum()-last_batch_time:.4f} sec"
+                sys.stdout.write(tmp_log)
+                last_batch_time = timer.sum()
                         
         if writer is not None:  # 放test_model前面是担心net.eval()对记录造成影响
             # 堆每个epoch，记录梯度，权值
@@ -167,7 +173,7 @@ def _train_model(net, train_iter, valid_iter, loss_fn, metrics, optimizer, num_e
         if print_log:
             sys.stdout.write(
                 '\r'+f"{num_batches}/{num_batches} [{len_progress*'='}] ")
-            print(f"Train Loss: {recorder['loss']/num_batches:.4f}",end=", ")
+            print(f"Train Loss: {recorder['loss']/recorder['num_instances']:.4f}",end=", ")
             for j in range(len(metrics)):
                 print(f"Train {metrics[j].name}: {recorder[metrics[j].name] / recorder['num_elements']:.4f}", end=", ")
             print(f"Valid Loss: {valid_loss:.4f}",end=", ")
@@ -175,11 +181,11 @@ def _train_model(net, train_iter, valid_iter, loss_fn, metrics, optimizer, num_e
                 print(f"Valid {metrics[j].name}: {valid_metrics[j]:.4f}", end=", ")
             print(f"Cost Time {timer.sum()-last_epoch_time:.4f} sec")
 
-
         last_epoch_time = timer.sum()
+
     # 统计一下最终训练效果
     print("Train result")
-    print(f'loss {recorder["loss"] / num_batches:.4f}')
+    print(f'loss {recorder["loss"] / recorder["num_instances"]:.4f}')
     for i, metric in enumerate(metrics):
         print(f'final train {metric.name} {recorder[metric.name] / recorder["num_elements"]:.4f}')
         print(f'final valid {metric.name} {valid_metrics[i]:.4f}')
