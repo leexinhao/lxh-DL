@@ -34,7 +34,7 @@ def train_batch_L1(net, X, y, loss_fn, metrics, optimizer, device, lamda=0.001):
         train_metrics_sum.append(metric(y_pred, y, method='sum'))
     return train_loss_sum, train_metrics_sum
 
-def train_batch(net, X, y, loss_fn, metrics, optimizer, device):
+def train_batch(net, X, y, loss_fn, metrics, optimizer, device, mutilabel):
     r"""
     进行一个batch的训练, 暂时不考虑多GPU训练
     """
@@ -45,7 +45,10 @@ def train_batch(net, X, y, loss_fn, metrics, optimizer, device):
     y_pred = net(X)
     l = loss_fn(y_pred, y)
     optimizer.zero_grad()
-    l.backward()
+    if mutilabel:
+        l.sum().backward()
+    else:
+        l.backward()
     optimizer.step()
     train_loss_sum = l.sum()
     train_metrics_sum = []
@@ -54,7 +57,7 @@ def train_batch(net, X, y, loss_fn, metrics, optimizer, device):
     return train_loss_sum, train_metrics_sum
 
 
-def train_model(net, train_iter, valid_iter, loss_fn, metrics, optimizer, num_epochs, device, train_func=None, use_animator=False, use_tensorboard=False, print_log=True, log_dir=None, comment='', len_progress=15):
+def train_model(net, train_iter, valid_iter, loss_fn, metrics, optimizer, num_epochs, device, train_func=None, use_animator=False, use_tensorboard=False, print_log=True, log_dir=None, comment='', len_progress=15, multlabel=False):
     r"""
     进行一次完整的训练
     train_func: 每一batch使用的训练函数，若不指定默认为train_batch
@@ -86,17 +89,17 @@ def train_model(net, train_iter, valid_iter, loss_fn, metrics, optimizer, num_ep
     #         print(f"未实现{train_func}")
     #         raise NotImplementedError
 
-    _train_model(net, train_iter, valid_iter, loss_fn, metrics, optimizer, num_epochs, device, train_func, animator, writer, print_log, len_progress)
+    _train_model(net, train_iter, valid_iter, loss_fn, metrics, optimizer, num_epochs, device, train_func, animator, writer, print_log, len_progress, multlabel)
     if writer is not None:
         writer.flush()
         writer.close()
 
-def _train_model(net, train_iter, valid_iter, loss_fn, metrics, optimizer, num_epochs, device, train_func, animator, writer, print_log, len_progress):
+def _train_model(net, train_iter, valid_iter, loss_fn, metrics, optimizer, num_epochs, device, train_func, animator, writer, print_log, len_progress, multlabel):
     net = net.to(device)
     print(f"training on {device}")
     num_batches = len(train_iter)
         
-    recorder = Accumulator(2 + len(metrics), ["num_exaples", "loss", *[f'{metric.name}' for metric in metrics]])
+    recorder = Accumulator(3 + len(metrics), ["num_instances", "num_elements", "loss", *[f'{metric.name}' for metric in metrics]])
     timer = Timer()
     last_epoch_time = 0
     if writer is not None:
@@ -120,8 +123,8 @@ def _train_model(net, train_iter, valid_iter, loss_fn, metrics, optimizer, num_e
         for i, (features, labels) in enumerate(train_iter):
             timer.start()
             loss_sum, metrics_sum = train_func(net, features, labels,
-                                 loss_fn, metrics, optimizer, device)
-            recorder.add(labels.shape[0], loss_sum, *metrics_sum)
+                                 loss_fn, metrics, optimizer, device, multlabel)
+            recorder.add(len(labels), labels.numel(), loss_sum, *metrics_sum)
             timer.stop()
             if animator is not None:
                 animator.set_suptitle(
@@ -129,10 +132,10 @@ def _train_model(net, train_iter, valid_iter, loss_fn, metrics, optimizer, num_e
             if (i + 1) % (num_batches // 5) == 0 or i == num_batches - 1:
                 if animator is not None:
                     animator.add(1, 1, epoch - 1 + (i + 1) / num_batches,
-                                (recorder["loss"] / (i + 1), None))
+                                (recorder["loss"] / recorder["num_elements"], None))  # loss也先用element算吧
                     for j in range(len(metrics)):
                         animator.add(1, j+2, epoch - 1 + (i + 1) / num_batches,
-                                    (recorder[metrics[j].name] / recorder["num_exaples"], None)) 
+                                    (recorder[metrics[j].name] / recorder["num_elements"], None)) # metric考虑到有accuracy这样的，还是算单个的
                 if writer is not None:
                     writer.add_scalar('Loss/Train', recorder["loss"] / (i + 1), (epoch-1) * num_batches + (i + 1))
                     for j in range(len(metrics)):
@@ -166,7 +169,7 @@ def _train_model(net, train_iter, valid_iter, loss_fn, metrics, optimizer, num_e
                 '\r'+f"{num_batches}/{num_batches} [{len_progress*'='}] ")
             print(f"Train Loss: {recorder['loss']/num_batches:.4f}",end=", ")
             for j in range(len(metrics)):
-                print(f"Train {metrics[j].name}: {recorder[metrics[j].name] / recorder['num_exaples']:.4f}", end=", ")
+                print(f"Train {metrics[j].name}: {recorder[metrics[j].name] / recorder['num_elements']:.4f}", end=", ")
             print(f"Valid Loss: {valid_loss:.4f}",end=", ")
             for j in range(len(metrics)):
                 print(f"Valid {metrics[j].name}: {valid_metrics[j]:.4f}", end=", ")
@@ -178,11 +181,11 @@ def _train_model(net, train_iter, valid_iter, loss_fn, metrics, optimizer, num_e
     print("Train result")
     print(f'loss {recorder["loss"] / num_batches:.4f}')
     for i, metric in enumerate(metrics):
-        print(f'final train {metric.name} {recorder[metric.name] / recorder["num_exaples"]:.4f}')
+        print(f'final train {metric.name} {recorder[metric.name] / recorder["num_elements"]:.4f}')
         print(f'final valid {metric.name} {valid_metrics[i]:.4f}')
 
     print(
-        f'{recorder["num_exaples"] * num_epochs / timer.sum():.4f} examples/sec on {device}')
+        f'{recorder["num_instances"] * num_epochs / timer.sum():.4f} examples/sec on {device}')
     print(f'{timer.sum() / num_epochs:.4f} sec/epoch on {device}')
     if animator is not None:
         animator.set_suptitle(

@@ -20,16 +20,18 @@ def test_model(net, test_iter, loss_fn, metrics, device, print_result=True):
             timer.start()
             X, y = X.to(device), y.to(device)
             y_pred = net(X)
-            recorder.add(loss_fn(y_pred, y).item(),
+            recorder.add(loss_fn(y_pred, y).sum().item(),
             *[metric(y_pred, y, method="sum") for metric in metrics])
             timer.stop()
-    test_loss = recorder['loss'] / num_batches
-    test_metrics = [recorder[metric.name] / num_instances for metric in metrics]
+    num_elements = num_instances * y.numel() / len(y)  # 默认送进来的是数值不是独热码
+    test_loss = recorder['loss'] / num_elements
+    test_metrics = [recorder[metric.name] / num_elements for metric in metrics]
     
     if print_result:
         print("Test result")
         print(f"Number of instances: {num_instances}")
         print(f"Number of batches: {num_batches}")
+        print(f"Number of elements: {num_elements}")
         print(f"Avg loss of each batch: {test_loss:>8f}")
         for i, test_metric in enumerate(test_metrics):
             print(f"{metrics[i].name}: {test_metric:.4f}")

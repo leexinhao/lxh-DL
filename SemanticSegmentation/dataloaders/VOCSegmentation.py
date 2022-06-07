@@ -24,7 +24,7 @@ VOC_COLORMAP = [[0, 0, 0], [128, 0, 0], [0, 128, 0], [128, 128, 0],
                 [64, 0, 0], [192, 0, 0], [64, 128, 0], [192, 128, 0],
                 [64, 0, 128], [192, 0, 128], [64, 128, 128], [192, 128, 128],
                 [0, 64, 0], [128, 64, 0], [0, 192, 0], [128, 192, 0],
-                [0, 64, 128]]
+                [0, 64, 128]] # 这个是按RGB顺序来的
 
 VOC_CLASSES = ['background', 'aeroplane', 'bicycle', 'bird', 'boat',
                'bottle', 'bus', 'car', 'cat', 'chair', 'cow',
@@ -49,7 +49,7 @@ def read_voc_images(voc_dir, is_train=True):
 
 def voc_colormap2label():
     """构建从RGB到VOC类别索引的映射"""
-    colormap2label = torch.zeros(256 ** 3, dtype=torch.long)
+    colormap2label = torch.zeros(256 ** 3, dtype=torch.long) # 默认背景为0
     for i, colormap in enumerate(VOC_COLORMAP):
         colormap2label[
             (colormap[0] * 256 + colormap[1]) * 256 + colormap[2]] = i
@@ -57,7 +57,7 @@ def voc_colormap2label():
 
 def voc_label_indices(colormap, colormap2label):
     """将VOC标签中的RGB值映射到它们的类别索引"""
-    colormap = colormap.permute(1, 2, 0).numpy().astype('int32')
+    colormap = colormap.permute(1, 2, 0).numpy().astype('int32') # 把channel通道换到后面，虽然不知道有啥意义
     idx = ((colormap[:, :, 0] * 256 + colormap[:, :, 1]) * 256
            + colormap[:, :, 2])
     return colormap2label[idx]
@@ -65,7 +65,7 @@ def voc_label_indices(colormap, colormap2label):
 def voc_rand_crop(feature, label, height, width):
     """随机裁剪特征和标签图像"""
     rect = torchvision.transforms.RandomCrop.get_params(
-        feature, (height, width))
+        feature, (height, width)) # 保证图像和标签应用相同的裁剪
     feature = torchvision.transforms.functional.crop(feature, *rect)
     label = torchvision.transforms.functional.crop(label, *rect)
     return feature, label
@@ -82,12 +82,12 @@ class VOCSegDataset(torch.utils.data.Dataset):
                          for feature in self.filter(features)]
         self.labels = self.filter(labels)
         self.colormap2label = voc_colormap2label()
-        print('read ' + str(len(self.features)) + ' examples')
+        # print('read ' + str(len(self.features)) + ' examples')
 
     def normalize_image(self, img):
         return self.transform(img.float() / 255)
 
-    def filter(self, imgs):
+    def filter(self, imgs): # 只保留能裁剪的图片
         return [img for img in imgs if (
             img.shape[1] >= self.crop_size[0] and
             img.shape[2] >= self.crop_size[1])]

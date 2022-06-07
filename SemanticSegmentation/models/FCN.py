@@ -1,6 +1,6 @@
-import imp
-from ops import bilinear_kernel
-from data_reader import load_data_voc
+import sys
+sys.path.append("..")
+from tools.ops import bilinear_kernel
 from torch import nn
 import torchvision
 

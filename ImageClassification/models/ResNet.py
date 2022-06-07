@@ -65,7 +65,7 @@ class ResNet(nn.Module):
         X = self.b3(X)
         X = self.b4(X)
         X = self.b5(X)
-        return self.classifier(x)
+        return self.classifier(X)
 
 
 if __name__ == "__main__":
