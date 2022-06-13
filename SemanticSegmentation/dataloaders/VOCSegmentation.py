@@ -31,6 +31,12 @@ VOC_CLASSES = ['background', 'aeroplane', 'bicycle', 'bird', 'boat',
                'diningtable', 'dog', 'horse', 'motorbike', 'person',
                'potted plant', 'sheep', 'sofa', 'train', 'tv/monitor']
 
+def label2image(pred, device):
+    """返回预测标签对应的图像"""
+    colormap = torch.tensor(VOC_COLORMAP, device=device)
+    X = pred.long()
+    return colormap[X, :]
+
 
 def read_voc_images(voc_dir, is_train=True):
     """读取所有VOC图像并标注"""
